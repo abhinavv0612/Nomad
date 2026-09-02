@@ -120,7 +120,8 @@ func roundTo1DP(f float64) float64 {
 // ---------- HTTP handlers ----------
 
 type Server struct {
-	store *Store
+	store        *Store
+	googlePlaces *GooglePlacesClient // nil if GOOGLE_PLACES_API_KEY isn't set
 }
 
 type addReviewRequest struct {
@@ -219,10 +220,19 @@ func main() {
 	srv.store.AddReview("Taj Mahal", 4, "Beautiful but very crowded by mid-morning.")
 	srv.store.AddReview("Gateway of India", 4, "Great spot in the evening, lots of street food nearby.")
 
+	if gp, err := NewGooglePlacesClient(); err != nil {
+		log.Printf("Google Places live-fetch disabled: %v", err)
+	} else {
+		srv.googlePlaces = gp
+		log.Printf("Google Places live-fetch enabled")
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", withLogging(withCORS(srv.handleHealth)))
 	mux.HandleFunc("/api/places/review", withLogging(withCORS(srv.handleAddReview)))
 	mux.HandleFunc("/api/places/search", withLogging(withCORS(srv.handleSearch)))
+	mux.HandleFunc("/api/google/search", withLogging(withCORS(srv.handleGoogleSearch)))
+	mux.HandleFunc("/api/google/place", withLogging(withCORS(srv.handleGoogleDetails)))
 
 	addr := ":8080"
 	log.Printf("place-review backend listening on %s", addr)
