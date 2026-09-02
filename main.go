@@ -121,6 +121,7 @@ func roundTo1DP(f float64) float64 {
 
 type Server struct {
 	store        *Store
+	trips        *TripStore
 	googlePlaces *GooglePlacesClient // nil if GOOGLE_PLACES_API_KEY isn't set
 }
 
@@ -213,7 +214,7 @@ func withLogging(next http.HandlerFunc) http.HandlerFunc {
 // ---------- main ----------
 
 func main() {
-	srv := &Server{store: NewStore()}
+	srv := &Server{store: NewStore(), trips: NewTripStore()}
 
 	// Seed a couple of example places so search has something to show immediately.
 	srv.store.AddReview("Taj Mahal", 5, "Breathtaking at sunrise, go early to avoid crowds.")
@@ -233,6 +234,13 @@ func main() {
 	mux.HandleFunc("/api/places/search", withLogging(withCORS(srv.handleSearch)))
 	mux.HandleFunc("/api/google/search", withLogging(withCORS(srv.handleGoogleSearch)))
 	mux.HandleFunc("/api/google/place", withLogging(withCORS(srv.handleGoogleDetails)))
+	mux.HandleFunc("POST /api/trips", withLogging(withCORS(srv.handleCreateTrip)))
+	mux.HandleFunc("GET /api/trips", withLogging(withCORS(srv.handleListTrips)))
+	mux.HandleFunc("GET /api/trips/{id}", withLogging(withCORS(srv.handleGetTrip)))
+	mux.HandleFunc("POST /api/trips/{id}/places", withLogging(withCORS(srv.handleAddTripPlace)))
+	// OPTIONS preflight for the trip routes (browsers send this before POST with JSON body)
+	mux.HandleFunc("OPTIONS /api/trips", withCORS(func(w http.ResponseWriter, r *http.Request) {}))
+	mux.HandleFunc("OPTIONS /api/trips/{id}/places", withCORS(func(w http.ResponseWriter, r *http.Request) {}))
 
 	addr := ":8080"
 	log.Printf("place-review backend listening on %s", addr)
