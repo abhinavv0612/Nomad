@@ -3,12 +3,8 @@
 A minimal working app: rate a place, search for a place, see its average
 rating and every comment left on it.
 
-## Structure
-
-```
-backend/    Go API (standard library only, no external dependencies)
-frontend/   Next.js app (TypeScript, Tailwind, App Router)
-```
+This repository is the **Go backend**. The Next.js frontend lives in a
+separate repo: https://github.com/abhinavv0612/Nomad-frontend
 
 ## Backend — Go
 
@@ -16,9 +12,15 @@ No third-party packages required, so `go run` / `go build` works with no
 network access needed.
 
 ```bash
-cd backend
 go run .
 # Server listens on http://localhost:8080
+```
+
+Set `PORT` to listen elsewhere — useful if something already holds 8080
+locally, and what hosting platforms inject:
+
+```bash
+PORT=8090 go run .
 ```
 
 Seeded with two example places (Taj Mahal, Gateway of India) so search
@@ -54,32 +56,22 @@ Data is in-memory only — it resets when the backend restarts. That's
 intentional for a POC; swap `Store` for a real database later without
 touching the HTTP layer.
 
-## Frontend — Next.js
+## Running with the frontend
+
+Clone the frontend repo alongside this one and run both:
 
 ```bash
-cd frontend
-npm install          # already run once; re-run if you clean node_modules
-npm run dev           # dev server on http://localhost:3000
-# or, production build (already generated in this delivery):
-npm run build
-npm run start
+# terminal 1 — this repo
+go run .
+
+# terminal 2 — Nomad-frontend
+npm install && npm run dev
 ```
 
-Set `NEXT_PUBLIC_API_URL` in `.env.local` if the backend isn't on
-`http://localhost:8080` (already set to that default).
-
-## Running both together
-
-```bash
-# terminal 1
-cd backend && go run .
-
-# terminal 2
-cd frontend && npm run dev
-```
-
-Open http://localhost:3000, submit a review, then search for the place
-name to see the average rating and comment list update.
+The frontend reads `NEXT_PUBLIC_API_URL` (default `http://localhost:8080`);
+point it at this server if you changed `PORT`. Then open
+http://localhost:3000, submit a review, and search for the place name to
+see the average rating and comment list update.
 
 ## Google Places (live fetch layer)
 
@@ -98,7 +90,7 @@ See: https://developers.google.com/maps/documentation/places/web-service/policie
 2. Set the key as an environment variable before starting the backend:
    ```bash
    export GOOGLE_PLACES_API_KEY="your-key-here"
-   cd backend && go run .
+   go run .
    ```
    If this isn't set, the backend still starts fine — the Google
    endpoints just return a clear "not configured" error, and the rest of
@@ -118,15 +110,19 @@ See: https://developers.google.com/maps/documentation/places/web-service/policie
   profile) and relative time ("3 weeks ago")
 - Required attribution line + a "View on Google Maps" link
 
-### Known limitation in this delivery
+### Known limitation
 
-This code was written and compile-checked against Google's documented
-API, but **not live-tested against Google's actual servers** — the
-sandbox this was built in doesn't have network access to
-`googleapis.com`. Test it on your machine once your key is set up; if
-anything in the response shape doesn't match (Google does update field
-names occasionally), the parsing lives in `backend/google_places.go` and
-should be a small, isolated fix.
+This code is compile-checked against Google's documented API but has
+**not yet been run against Google's actual servers** — no key has been
+issued for the project yet. Test it once your key is set up; if the
+response shape doesn't match (Google does rename fields occasionally),
+the parsing is isolated in `google_places.go`.
+
+Note both calls request Enterprise-tier fields (`rating`,
+`userRatingCount` on search; `reviews`, `currentOpeningHours` on
+details), and Google bills at the highest tier any requested field
+belongs to. The free allowance is 1,000 calls per Enterprise SKU per
+month.
 
 ## Trips (Phase 1: the retention loop)
 
