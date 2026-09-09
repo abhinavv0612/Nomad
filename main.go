@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -48,8 +50,20 @@ func normalize(name string) string {
 	return strings.ToLower(strings.TrimSpace(name))
 }
 
+// genID returns a prefixed, unguessable id.
+//
+// These ids travel in URLs — GET /api/trips/{id} is unauthenticated, and
+// sharing a trip by link is the plan — so a timestamp-derived id would let
+// anyone walk the id space and read every trip. 72 bits of randomness is
+// far past collision risk at any scale this app will see.
 func genID(prefix string) string {
-	return prefix + "_" + time.Now().UTC().Format("20060102T150405.000000000")
+	b := make([]byte, 9)
+	if _, err := rand.Read(b); err != nil {
+		// The OS entropy source is unavailable; issuing predictable ids
+		// instead would be worse than refusing to start.
+		panic("crypto/rand unavailable: " + err.Error())
+	}
+	return prefix + "_" + base64.RawURLEncoding.EncodeToString(b)
 }
 
 // AddReview creates the place if it doesn't exist, then appends a review.
